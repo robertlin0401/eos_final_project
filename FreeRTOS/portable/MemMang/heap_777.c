@@ -92,7 +92,7 @@ static const uint16_t heapSTRUCT_SIZE	= ( ( sizeof ( Block_t ) + ( portBYTE_ALIG
 #define heapMINIMUM_BLOCK_SIZE	( ( size_t ) ( heapSTRUCT_SIZE * 2 ) )
 
 #define heapMAXIMUM_POOL_NUM 10
-const size_t xSizeList[heapMAXIMUM_POOL_NUM] = { 100, 150, 200, 250, 300, 350, 400, 450, 500, 1000 };
+const size_t xSizeList[heapMAXIMUM_POOL_NUM] = { 80, 160, 240, 320, 400, 480, 560, 640, 720, 1000 };
 
 static BaseType_t xHeapHasBeenInitialised = pdFALSE;
 static BaseType_t xPoolHasBeenInitialised = pdFALSE;
