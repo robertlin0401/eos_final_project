@@ -69,6 +69,23 @@ static void prvHeapInit( void );
 	static uint8_t ucHeap[ configTOTAL_HEAP_SIZE ];
 #endif /* configAPPLICATION_ALLOCATED_HEAP */
 
+/* Define the linked list structure. Block_t is used to link free blocks with
+ * same size, and Pool_t is used to record the head of each list.
+ */
+typedef struct Pool Pool_t;
+typedef struct Block Block_t;
+
+struct Pool
+{
+    Block_t *pxFirstFree;   /* The first free block in this pool. */
+    size_t xBlockSize;      /* The size of the free block in this pool. */
+};
+
+struct Block
+{
+    Pool_t *pxPool;         /* The pool this block belongs to. */
+    Block_t *pxNext;        /* The next free block in the list. */
+};
 
 /* Define the linked list structure.  This is used to link free blocks in order
 of their size. */
