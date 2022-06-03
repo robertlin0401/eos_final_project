@@ -264,7 +264,7 @@ void vPrintFreeList(void)
 	for (int i = 0; i < heapMAXIMUM_POOL_NUM; ++i) {
         current = xPool[i].pxFirstFree;
         while (current) {
-            sprintf(data, "%p         %d           %4d         %p\n\r", (void *)current, heapSTRUCT_SIZE, xPool[i].xBlockSize, (void *)current + xPool[i].xBlockSize);
+            sprintf(data, "%p         %d           %4d         %p\n\r", (void *)current, heapSTRUCT_SIZE, xPool[i].xBlockSize + heapSTRUCT_SIZE, (void *)current + xPool[i].xBlockSize + heapSTRUCT_SIZE);
             HAL_UART_Transmit(&huart2, (uint8_t *)data, strlen(data), 0xffff);
             current = current->pxNext;
         }
