@@ -88,20 +88,8 @@ struct Block
     Block_t *pxNext;        /* The next free block in the list. */
 };
 
-/* Define the linked list structure.  This is used to link free blocks in order
-of their size. */
-typedef struct A_BLOCK_LINK
-{
-	struct A_BLOCK_LINK *pxNextFreeBlock;	/*<< The next free block in the list. */
-	size_t xBlockSize;						/*<< The size of the free block. */
-} BlockLink_t;
-
-
 static const uint16_t heapSTRUCT_SIZE	= ( ( sizeof ( Block_t ) + ( portBYTE_ALIGNMENT - 1 ) ) & ~portBYTE_ALIGNMENT_MASK );
 #define heapMINIMUM_BLOCK_SIZE	( ( size_t ) ( heapSTRUCT_SIZE * 2 ) )
-
-/* Create a couple of list links to mark the start and end of the list. */
-static BlockLink_t xStart, xEnd;
 
 #define heapMAXIMUM_POOL_NUM 10
 const size_t xSizeList[heapMAXIMUM_POOL_NUM] = { 100, 150, 200, 250, 300, 350, 400, 450, 500, 1000 };
@@ -121,59 +109,6 @@ static size_t xFreeBytesRemaining = configADJUSTED_HEAP_SIZE;
 
 /* STATIC FUNCTIONS ARE DEFINED AS MACROS TO MINIMIZE THE FUNCTION CALL DEPTH. */
 
-/*
- * Insert a block into the list of free blocks - which is ordered by size of
- * the block.  Small blocks at the start of the list and large blocks at the end
- * of the list.
- */
-#define prvInsertBlockIntoFreeList( pxBlockToInsert )								\
-{																					\
-BlockLink_t *pxIterator, *pxPrevious, *pxBlock;		    				            \
-size_t xBlockSize;																	\
-pxBlock = pxBlockToInsert;                                                          \
-																					\
-    /* TODO: Merge free blocks                                                    */\
-    /*                                                                            */\
-    /* HINT                                                                       */\
-    /* 1. You may need to use the `pxPrevious` pointer to keep trace of the       */\
-    /*    previous block.                                                         */\
-    /* 2. Because it is a macro, use `pxBlock` instead of `pxBlockToInsert`       */\
-    /*    below, or you may encounter a problem.                                  */\
-    /*                                                                            */\
-    pxPrevious = &xStart;                                                           \
-    pxIterator = (&xStart)->pxNextFreeBlock;                                        \
-	while (pxIterator != &xEnd) {                                                   \
-		if ((uint8_t *)pxIterator == (uint8_t *)pxBlock + pxBlock->xBlockSize) {    \
-			pxBlock->xBlockSize += pxIterator->xBlockSize;                          \
-            pxPrevious->pxNextFreeBlock = pxIterator->pxNextFreeBlock;              \
-            pxIterator = pxIterator->pxNextFreeBlock;                               \
-            continue;                                                               \
-		}                                                                           \
-        if ((uint8_t *)pxIterator + pxIterator->xBlockSize == (uint8_t *)pxBlock) { \
-            pxIterator->xBlockSize += pxBlock->xBlockSize;                          \
-            pxPrevious->pxNextFreeBlock = pxIterator->pxNextFreeBlock;              \
-            pxBlock = pxIterator;                                                   \
-            pxIterator = pxPrevious->pxNextFreeBlock;                               \
-            continue;                                                               \
-		}                                                                           \
-		pxPrevious = pxIterator;                                                    \
-        pxIterator = pxIterator->pxNextFreeBlock;									\
-	}																				\
-                                                                                    \
-	xBlockSize = pxBlock->xBlockSize;										        \
-																					\
-	/* Iterate through the list until a block is found that has a larger size */	\
-	/* than the block we are inserting. */											\
-	for( pxIterator = &xStart; pxIterator->pxNextFreeBlock->xBlockSize < xBlockSize; pxIterator = pxIterator->pxNextFreeBlock )	\
-	{																				\
-		/* There is nothing to do here - just iterate to the correct position. */	\
-	}																				\
-																					\
-	/* Update the list to include the block being inserted in the correct */		\
-	/* position. */																	\
-	pxBlock->pxNextFreeBlock = pxIterator->pxNextFreeBlock;					        \
-	pxIterator->pxNextFreeBlock = pxBlock;									        \
-}                                                                                   \
 /*-----------------------------------------------------------*/
 
 void *pvPortMalloc( size_t xWantedSize )
@@ -307,27 +242,13 @@ void vPortInitialiseBlocks( void )
 
 static void prvHeapInit( void )
 {
-BlockLink_t *pxFirstFreeBlock;
 uint8_t *pucAlignedHeap;
 
 	/* Ensure the heap starts on a correctly aligned boundary. */
 	pucAlignedHeap = ( uint8_t * ) ( ( ( portPOINTER_SIZE_TYPE ) &ucHeap[ portBYTE_ALIGNMENT ] ) & ( ~( ( portPOINTER_SIZE_TYPE ) portBYTE_ALIGNMENT_MASK ) ) );
 
-	/* xStart is used to hold a pointer to the first item in the list of free
-	blocks.  The void cast is used to prevent compiler warnings. */
-	xStart.pxNextFreeBlock = ( void * ) pucAlignedHeap;
-	xStart.xBlockSize = ( size_t ) 0;
-
-	/* xEnd is used to mark the end of the list of free blocks. */
-	xEnd.xBlockSize = configADJUSTED_HEAP_SIZE;
-	xEnd.pxNextFreeBlock = NULL;
-
 	/* To start with there is a single free block that is sized to take up the
 	entire heap space. */
-	pxFirstFreeBlock = ( void * ) pucAlignedHeap;
-	pxFirstFreeBlock->xBlockSize = configADJUSTED_HEAP_SIZE;
-	pxFirstFreeBlock->pxNextFreeBlock = &xEnd;
-    
 	pxFreeHeap = ( void * ) pucAlignedHeap;
 }
 /*-----------------------------------------------------------*/
@@ -351,11 +272,6 @@ void vPrintFreeList(void)
 
 	sprintf(data, "configADJUSTED_HEAP_SIZE: %0d xFreeBytesRemaining: %0d\n\r", configADJUSTED_HEAP_SIZE, xFreeBytesRemaining);
     HAL_UART_Transmit(&huart2, (uint8_t *)data, strlen(data), 0xffff);
-
-    for (int i = 0; i < heapMAXIMUM_POOL_NUM; ++i) {
-        sprintf(data, "Pool: %0d Size: %0d\n\r", i, xPool[i].xBlockSize);
-        HAL_UART_Transmit(&huart2, (uint8_t *)data, strlen(data), 0xffff);
-    }
 }
 
 static BaseType_t xPortPoolInit(size_t *pxSizeList)
