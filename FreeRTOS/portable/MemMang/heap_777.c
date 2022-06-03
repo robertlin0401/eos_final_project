@@ -97,7 +97,7 @@ typedef struct A_BLOCK_LINK
 } BlockLink_t;
 
 
-static const uint16_t heapSTRUCT_SIZE	= ( ( sizeof ( BlockLink_t ) + ( portBYTE_ALIGNMENT - 1 ) ) & ~portBYTE_ALIGNMENT_MASK );
+static const uint16_t heapSTRUCT_SIZE	= ( ( sizeof ( Block_t ) + ( portBYTE_ALIGNMENT - 1 ) ) & ~portBYTE_ALIGNMENT_MASK );
 #define heapMINIMUM_BLOCK_SIZE	( ( size_t ) ( heapSTRUCT_SIZE * 2 ) )
 
 /* Create a couple of list links to mark the start and end of the list. */
@@ -178,8 +178,8 @@ pxBlock = pxBlockToInsert;                                                      
 
 void *pvPortMalloc( size_t xWantedSize )
 {
-BlockLink_t *pxBlock, *pxPreviousBlock, *pxNewBlockLink;
 void *pvReturn = NULL;
+int iter = 0;
 size_t BlockSize, WantedSize;
 char data[80];
 WantedSize = xWantedSize;
@@ -187,7 +187,7 @@ WantedSize = xWantedSize;
 	vTaskSuspendAll();
 	{
 		/* If this is the first call to malloc then the heap will require
-		initialisation to setup the list of free blocks. */
+		initialization. */
 		if( xHeapHasBeenInitialised == pdFALSE )
 		{
 			prvHeapInit();
@@ -195,10 +195,18 @@ WantedSize = xWantedSize;
             xPortPoolInit(xSizeList);
 		}
 
-		/* The wanted size is increased so it can contain a BlockLink_t
+		/* The wanted size is increased so it can contain a Block_t
 		structure in addition to the requested amount of bytes. */
 		if( xWantedSize > 0 )
 		{
+            /* Find the best-fit size from the pool size. */
+            for (iter = 0; iter < 10; ++iter) {
+                if (xPool[iter].xBlockSize >= xWantedSize) {
+                    xWantedSize = xPool[iter].xBlockSize;
+                    break;
+                }
+            }
+
 			xWantedSize += heapSTRUCT_SIZE;
 
 			/* Ensure that blocks are always aligned to the required number of bytes. */
@@ -209,48 +217,30 @@ WantedSize = xWantedSize;
 			}
 		}
 
-		if( ( xWantedSize > 0 ) && ( xWantedSize < configADJUSTED_HEAP_SIZE ) )
+		if( ( xWantedSize > 0 ) && ( xWantedSize < xFreeBytesRemaining ) )
 		{
-			/* Blocks are stored in byte order - traverse the list from the start
-			(smallest) block until one of adequate size is found. */
-			pxPreviousBlock = &xStart;
-			pxBlock = xStart.pxNextFreeBlock;
-			while( ( pxBlock->xBlockSize < xWantedSize ) && ( pxBlock->pxNextFreeBlock != NULL ) )
-			{
-				pxPreviousBlock = pxBlock;
-				pxBlock = pxBlock->pxNextFreeBlock;
-			}
+            if (xPool[iter].pxFirstFree != NULL) {
 
-			/* If we found the end marker then a block of adequate size was not found. */
-			if( pxBlock != &xEnd )
-			{
-				/* Return the memory space - jumping over the BlockLink_t structure
-				at its start. */
-				pvReturn = ( void * ) ( ( ( uint8_t * ) pxPreviousBlock->pxNextFreeBlock ) + heapSTRUCT_SIZE );
+                /* Return the memory space - jumping over the Block_t structure at its 
+                start. */
+                pvReturn = (void *)((uint8_t *)xPool[iter].pxFirstFree + heapSTRUCT_SIZE);
 
-				/* This block is being returned for use so must be taken out of the
+                /* This block is being returned for use so must be taken out of the
 				list of free blocks. */
-				pxPreviousBlock->pxNextFreeBlock = pxBlock->pxNextFreeBlock;
+                xPool[iter].pxFirstFree = xPool[iter].pxFirstFree->pxNext;
 
-				/* If the block is larger than required it can be split into two. */
-				if( ( pxBlock->xBlockSize - xWantedSize ) > heapMINIMUM_BLOCK_SIZE )
-				{
-					/* This block is to be split into two.  Create a new block
-					following the number of bytes requested. The void cast is
-					used to prevent byte alignment warnings from the compiler. */
-					pxNewBlockLink = ( void * ) ( ( ( uint8_t * ) pxBlock ) + xWantedSize );
+            } else {
+				
+                /* The heap is to be split into two. Create a new block
+                following the number of bytes requested. The void cast is
+                used to prevent byte alignment warnings from the compiler. */
+                pxFreeHeap->pxPool = &(xPool[iter]);
+                pvReturn = (void *)((uint8_t *)pxFreeHeap + heapSTRUCT_SIZE);
+                pxFreeHeap = (void *)((uint8_t *)pxFreeHeap + xWantedSize);
 
-					/* Calculate the sizes of two blocks split from the single
-					block. */
-					pxNewBlockLink->xBlockSize = pxBlock->xBlockSize - xWantedSize;
-					pxBlock->xBlockSize = xWantedSize;
-
-					/* Insert the new block into the list of free blocks. */
-					prvInsertBlockIntoFreeList( ( pxNewBlockLink ) );
-				}
-
-				xFreeBytesRemaining -= pxBlock->xBlockSize;
 			}
+
+            xFreeBytesRemaining -= xPool[iter].xBlockSize;
 		}
 
 		traceMALLOC( pvReturn, xWantedSize );
