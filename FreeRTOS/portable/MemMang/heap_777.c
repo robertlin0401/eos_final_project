@@ -59,6 +59,7 @@ task.h is included from an application file. */
  * Initialises the heap structures before their first use.
  */
 static void prvHeapInit( void );
+static BaseType_t xPortPoolInit(size_t *);
 
 /* Allocate the memory for the heap. */
 #if( configAPPLICATION_ALLOCATED_HEAP == 1 )
@@ -101,6 +102,18 @@ static const uint16_t heapSTRUCT_SIZE	= ( ( sizeof ( BlockLink_t ) + ( portBYTE_
 
 /* Create a couple of list links to mark the start and end of the list. */
 static BlockLink_t xStart, xEnd;
+
+#define heapMAXIMUM_POOL_NUM 10
+const size_t xSizeList[heapMAXIMUM_POOL_NUM] = { 100, 150, 200, 250, 300, 350, 400, 450, 500, 1000 };
+
+static BaseType_t xHeapHasBeenInitialised = pdFALSE;
+static BaseType_t xPoolHasBeenInitialised = pdFALSE;
+
+/* Create a couple of pools. */
+static Pool_t xPool[heapMAXIMUM_POOL_NUM];
+
+/* Keeps track of the unallocated heap's head. */
+Block_t *pxFreeHeap = NULL;
 
 /* Keeps track of the number of free bytes remaining, but says nothing about
 fragmentation. */
@@ -166,7 +179,6 @@ pxBlock = pxBlockToInsert;                                                      
 void *pvPortMalloc( size_t xWantedSize )
 {
 BlockLink_t *pxBlock, *pxPreviousBlock, *pxNewBlockLink;
-static BaseType_t xHeapHasBeenInitialised = pdFALSE;
 void *pvReturn = NULL;
 size_t BlockSize, WantedSize;
 char data[80];
@@ -180,6 +192,7 @@ WantedSize = xWantedSize;
 		{
 			prvHeapInit();
 			xHeapHasBeenInitialised = pdTRUE;
+            xPortPoolInit(xSizeList);
 		}
 
 		/* The wanted size is increased so it can contain a BlockLink_t
@@ -323,6 +336,8 @@ uint8_t *pucAlignedHeap;
 	pxFirstFreeBlock = ( void * ) pucAlignedHeap;
 	pxFirstFreeBlock->xBlockSize = configADJUSTED_HEAP_SIZE;
 	pxFirstFreeBlock->pxNextFreeBlock = &xEnd;
+    
+	pxFreeHeap = ( void * ) pucAlignedHeap;
 }
 /*-----------------------------------------------------------*/
 
@@ -353,4 +368,33 @@ void vPrintFreeList(void)
 
 	sprintf(data, "configADJUSTED_HEAP_SIZE: %0d xFreeBytesRemaining: %0d\n\r", configADJUSTED_HEAP_SIZE, xFreeBytesRemaining);
     HAL_UART_Transmit(&huart2, (uint8_t *)data, strlen(data), 0xffff);
+
+    for (int i = 0; i < heapMAXIMUM_POOL_NUM; ++i) {
+        sprintf(data, "Pool: %0d Size: %0d\n\r", i, xPool[i].xBlockSize);
+        HAL_UART_Transmit(&huart2, (uint8_t *)data, strlen(data), 0xffff);
+    }
+}
+
+static BaseType_t xPortPoolInit(size_t *pxSizeList)
+{
+    if (xPoolHasBeenInitialised == pdTRUE)
+        return pdFALSE;
+    
+    vTaskSuspendAll();
+	{
+		if(xHeapHasBeenInitialised == pdFALSE)
+		{
+			prvHeapInit();
+			xHeapHasBeenInitialised = pdTRUE;
+		}
+        // TODO: need to sort the size list?
+        for (int i = 0; i < heapMAXIMUM_POOL_NUM; ++i) {
+            xPool[i].pxFirstFree = NULL;
+            xPool[i].xBlockSize = *(pxSizeList + i);
+        }
+        xPoolHasBeenInitialised = pdTRUE;
+	}
+	( void ) xTaskResumeAll();
+
+    return pdTRUE;
 }
