@@ -268,11 +268,11 @@ WantedSize = xWantedSize;
 void vPortFree( void *pv )
 {
 uint8_t *puc = ( uint8_t * ) pv;
-BlockLink_t *pxLink;
+Block_t *pxLink;
 
 	if( pv != NULL )
 	{
-		/* The memory being freed will have an BlockLink_t structure immediately
+		/* The memory being freed will have an Block_t structure immediately
 		before it. */
 		puc -= heapSTRUCT_SIZE;
 
@@ -283,9 +283,10 @@ BlockLink_t *pxLink;
 		vTaskSuspendAll();
 		{
 			/* Add this block to the list of free blocks. */
-			prvInsertBlockIntoFreeList( ( ( BlockLink_t * ) pxLink ) );
-			xFreeBytesRemaining += pxLink->xBlockSize;
-			traceFREE( pv, pxLink->xBlockSize );
+			pxLink->pxNext = pxLink->pxPool->pxFirstFree;
+            pxLink->pxPool->pxFirstFree = pxLink;
+			xFreeBytesRemaining += pxLink->pxPool->xBlockSize;
+			traceFREE( pv, pxLink->pxPool->xBlockSize );
 		}
 		( void ) xTaskResumeAll();
 	}
@@ -333,27 +334,19 @@ uint8_t *pucAlignedHeap;
 
 void vPrintFreeList(void)
 {
-    /* TODO: implement this function
-     *
-     * Reference format
-     * > sprintf(data, "StartAddress heapSTRUCT_SIZE xBlockSize EndAddress\n\r");
-     * > sprintf(data, "%p         %d           %4d         %p\n\r", ...);
-     * > sprintf(data, "configADJUSTED_HEAP_SIZE: %0d xFreeBytesRemaining: %0d\n\r", ...);
-     */
     char data[100];
-	BlockLink_t *current = &xStart;
-    current = current->pxNextFreeBlock;
+	Block_t *current;
 
 	sprintf(data, "StartAddress heapSTRUCT_SIZE xBlockSize EndAddress\n\r");
 	HAL_UART_Transmit(&huart2, (uint8_t *)data, strlen(data), 0xffff);
 
-	if(current == NULL)
-		return;
-
-	while(current->pxNextFreeBlock != NULL) {
-		sprintf(data, "%p         %d           %4d         %p\n\r", (void *)current, heapSTRUCT_SIZE, current->xBlockSize, (void *)current + current->xBlockSize);
-		HAL_UART_Transmit(&huart2, (uint8_t *)data, strlen(data), 0xffff);
-		current = current->pxNextFreeBlock;
+	for (int i = 0; i < heapMAXIMUM_POOL_NUM; ++i) {
+        current = xPool[i].pxFirstFree;
+        while (current) {
+            sprintf(data, "%p         %d           %4d         %p\n\r", (void *)current, heapSTRUCT_SIZE, xPool[i].xBlockSize, (void *)current + xPool[i].xBlockSize);
+            HAL_UART_Transmit(&huart2, (uint8_t *)data, strlen(data), 0xffff);
+            current = current->pxNext;
+        }
 	}
 
 	sprintf(data, "configADJUSTED_HEAP_SIZE: %0d xFreeBytesRemaining: %0d\n\r", configADJUSTED_HEAP_SIZE, xFreeBytesRemaining);
