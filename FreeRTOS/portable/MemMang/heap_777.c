@@ -152,7 +152,7 @@ WantedSize = xWantedSize;
 			}
 		}
 
-		if( ( xWantedSize > 0 ) && ( xWantedSize < xFreeBytesRemaining ) )
+		if( ( xWantedSize > 0 ) && ( xWantedSize < configADJUSTED_HEAP_SIZE ) )
 		{
             if (xPool[iter].pxFirstFree != NULL) {
 
@@ -174,8 +174,6 @@ WantedSize = xWantedSize;
                 pxFreeHeap = (void *)((uint8_t *)pxFreeHeap + xWantedSize);
 
 			}
-
-            xFreeBytesRemaining -= xPool[iter].xBlockSize;
 		}
 
 		traceMALLOC( pvReturn, xWantedSize );
@@ -220,7 +218,6 @@ Block_t *pxLink;
 			/* Add this block to the list of free blocks. */
 			pxLink->pxNext = pxLink->pxPool->pxFirstFree;
             pxLink->pxPool->pxFirstFree = pxLink;
-			xFreeBytesRemaining += pxLink->pxPool->xBlockSize;
 			traceFREE( pv, pxLink->pxPool->xBlockSize );
 		}
 		( void ) xTaskResumeAll();

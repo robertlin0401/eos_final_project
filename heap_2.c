@@ -184,8 +184,6 @@ void *pvReturn = NULL;
 					/* Insert the new block into the list of free blocks. */
 					prvInsertBlockIntoFreeList( ( pxNewBlockLink ) );
 				}
-
-				xFreeBytesRemaining -= pxBlock->xBlockSize;
 			}
 		}
 
@@ -226,7 +224,6 @@ BlockLink_t *pxLink;
 		{
 			/* Add this block to the list of free blocks. */
 			prvInsertBlockIntoFreeList( ( ( BlockLink_t * ) pxLink ) );
-			xFreeBytesRemaining += pxLink->xBlockSize;
 			traceFREE( pv, pxLink->xBlockSize );
 		}
 		( void ) xTaskResumeAll();

@@ -206,17 +206,6 @@ void *pvReturn = NULL;
 						mtCOVERAGE_TEST_MARKER();
 					}
 
-					xFreeBytesRemaining -= pxBlock->xBlockSize;
-
-					if( xFreeBytesRemaining < xMinimumEverFreeBytesRemaining )
-					{
-						xMinimumEverFreeBytesRemaining = xFreeBytesRemaining;
-					}
-					else
-					{
-						mtCOVERAGE_TEST_MARKER();
-					}
-
 					/* The block is being returned - it is allocated and owned
 					by the application and has no "next" block. */
 					pxBlock->xBlockSize |= xBlockAllocatedBit;
@@ -289,7 +278,6 @@ BlockLink_t *pxLink;
 				vTaskSuspendAll();
 				{
 					/* Add this block to the list of free blocks. */
-					xFreeBytesRemaining += pxLink->xBlockSize;
 					traceFREE( pv, pxLink->xBlockSize );
 					prvInsertBlockIntoFreeList( ( ( BlockLink_t * ) pxLink ) );
 				}
