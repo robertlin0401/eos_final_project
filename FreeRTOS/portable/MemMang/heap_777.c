@@ -172,8 +172,6 @@ int iter = 0;
 
 			}
 		}
-
-		traceMALLOC( pvReturn, xWantedSize );
 	}
 	( void ) xTaskResumeAll();
 
@@ -211,7 +209,6 @@ Block_t *pxLink;
 			/* Add this block to the list of free blocks. */
 			pxLink->pxNext = pxLink->pxPool->pxFirstFree;
             pxLink->pxPool->pxFirstFree = pxLink;
-			traceFREE( pv, pxLink->pxPool->xBlockSize );
 		}
 		( void ) xTaskResumeAll();
 	}

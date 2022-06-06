@@ -223,8 +223,6 @@ void *pvReturn = NULL;
 		{
 			mtCOVERAGE_TEST_MARKER();
 		}
-
-		traceMALLOC( pvReturn, xWantedSize );
 	}
 	( void ) xTaskResumeAll();
 
@@ -271,7 +269,6 @@ BlockLink_t *pxLink;
 				vTaskSuspendAll();
 				{
 					/* Add this block to the list of free blocks. */
-					traceFREE( pv, pxLink->xBlockSize );
 					prvInsertBlockIntoFreeList( ( ( BlockLink_t * ) pxLink ) );
 				}
 				( void ) xTaskResumeAll();
