@@ -149,7 +149,7 @@ int iter = 0;
 			}
 		}
 
-		if( ( xWantedSize > 0 ) && ( xWantedSize < configADJUSTED_HEAP_SIZE ) )
+		if( ( xWantedSize > 0 ) && ( xWantedSize < xFreeBytesRemaining ) )
 		{
             if (xPool[iter].pxFirstFree != NULL) {
 
@@ -171,6 +171,7 @@ int iter = 0;
                 pxFreeHeap = (void *)((uint8_t *)pxFreeHeap + xWantedSize);
 
 			}
+            xFreeBytesRemaining -= xPool[iter].xBlockSize;
 		}
 	}
 	( void ) xTaskResumeAll();
@@ -209,6 +210,7 @@ Block_t *pxLink;
 			/* Add this block to the list of free blocks. */
 			pxLink->pxNext = pxLink->pxPool->pxFirstFree;
             pxLink->pxPool->pxFirstFree = pxLink;
+			xFreeBytesRemaining += pxLink->pxPool->xBlockSize;
 		}
 		( void ) xTaskResumeAll();
 	}
