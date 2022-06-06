@@ -132,7 +132,7 @@ int iter = 0;
 		if( xWantedSize > 0 )
 		{
             /* Find the best-fit size from the pool size. */
-            for (iter = 0; iter < 10; ++iter) {
+            for (iter = 0; iter < heapMAXIMUM_POOL_NUM; ++iter) {
                 if (xPool[iter].xBlockSize >= xWantedSize) {
                     xWantedSize = xPool[iter].xBlockSize;
                     break;
