@@ -115,9 +115,6 @@ void *pvPortMalloc( size_t xWantedSize )
 {
 void *pvReturn = NULL;
 int iter = 0;
-size_t BlockSize, WantedSize;
-char data[80];
-WantedSize = xWantedSize;
 
 	vTaskSuspendAll();
 	{
@@ -189,10 +186,6 @@ WantedSize = xWantedSize;
 		}
 	}
 	#endif
-
-    BlockSize = xWantedSize;
-    sprintf(data, "pvReturn: %p | heapSTRUCT_SIZE: %0d | WantedSize: %3d | BlockSize: %3d\n\r", pvReturn, heapSTRUCT_SIZE, WantedSize, BlockSize);
-	HAL_UART_Transmit(&huart2, (uint8_t *)data, strlen(data), 0xffff);
 
 	return pvReturn;
 }
